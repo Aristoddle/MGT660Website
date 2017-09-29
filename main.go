@@ -29,7 +29,6 @@ import (
 	"time"
 	"io/ioutil"
 	"encoding/json"
-	"github.com/tidwall/gjson"
 )
 
 // Command-line flags.
@@ -87,12 +86,21 @@ type WeatherResponse struct {
 
 }
 
+type CurrWeatherStruct struct {
+	city string
+	region string
+	temp float64
+	weathertext string
+	weathericon string
+}
+
 func login(w http.ResponseWriter, r *http.Request) {
     fmt.Println("method:", r.Method) //get request method
     if r.Method == "GET" {
         t, _ := template.ParseFiles("login.gtpl")
         t.Execute(w, nil)
-    } else {
+	
+		} else {
         r.ParseForm()
 		// logic part of log in
 		var zipstr = r.Form["username"][0]
@@ -114,72 +122,47 @@ func login(w http.ResponseWriter, r *http.Request) {
 			fmt.Println(err)
 		}
 		fmt.Println("\n\n body:\n\n", string(body))
+		fmt.Println("\n\n body BYTES:\n\n", []byte(string(body)))
 		fmt.Println("\n\n RES, POST:\n\n", res)
-		fmt.Println("\n\n GJSON OUTPUT \n\n", gjson.Get(json, "location"))
-		
-		/*
-		{
-			"location":
-			{
-				"name":"New Haven",
-				"region":"Connecticut",
-				"country":"USA",
-				"lat":41.33,
-				"lon":-72.94,
-				"tz_id":"America/New_York",
-				"localtime_epoch":1506634007,"
-				localtime":"2017-09-28 17:26"
-			},
-			"current":
-			{
-				"last_updated_epoch":1506633306,
-				"last_updated":"2017-09-28 17:15",
-				"temp_c":22.8,
-				"temp_f":73.0,
-				"is_day":1,
-				"condition":
-				{
-					"text":"Sunny",
-					"icon":"//cdn.apixu.com/weather/64x64/day/113.png",
-					"code":1000
-				},
-				"wind_mph":11.9,
-				"wind_kph":19.1,
-				"wind_degree":330,
-				"wind_dir":"NNW",
-				"pressure_mb":1008.0,
-				"pressure_in":30.2,
-				"precip_mm":0.0,
-				"precip_in":0.0,
-				"humidity":40,
-				"cloud":0,
-				"feelslike_c":24.3,
-				"feelslike_f":75.7,
-				"vis_km":16.0,
-				"vis_miles":9.0
-			}
-		} */
 
-		type ZipArg struct {
-			Zipcode string
+		var general map[string]interface{}
+		if err := json.Unmarshal(body, &general); err != nil {
+			panic(err)
+		}
+		fmt.Println(general)
+
+		location := general["location"].(map[string]interface{})
+		current := general["current"].(map[string]interface{})
+
+		fmt.Println("set up current and loc...")
+		cityname := location["name"].(string)
+		regionname := location["region"].(string)
+		temp := current["temp_f"].(float64)
+
+
+		fmt.Println("\ncity, region, temp\t", cityname, regionname, temp)
+
+		cond := current["condition"].(map[string]interface{})
+
+		weathertext := cond["text"].(string)
+		weathericon := cond["icon"].(string)
+
+		fmt.Println("\n\n Pulled text and icon...\t", weathertext, weathericon)
+
+		wthrstruct := CurrWeatherStruct { 
+			cityname,
+			regionname, 
+			temp,
+			weathertext,
+			weathericon,
 		}
 
-		zc := ZipArg{zipstr}
+		fmt.Println("\n\nwthrstruct: \t\t", wthrstruct)
 		
-		var nextlayout = template.Must(template.New("html").Parse(`
-			<!DOCTYPE html>
-			<html>
-				<head>
-				<title>Basic Weather App</title>
-				</head>
-				<body>
-					<br><br>
-					<h1>The Zip code that you supplied was: {{.Zipcode}}</h1>
-				</body>
-			</html>
-		`))
-
-	nextlayout.Execute(w, zc)
+		err := weatherResult.Execute(w, wthrstruct)
+		if err != nil {
+			log.Print(err)
+		}
     }
 }
 
@@ -274,17 +257,31 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // tmpl is the HTML template that drives the user interface.
 var tmpl = template.Must(template.New("tmpl").Parse(`
-<!DOCTYPE html>
-<html>
-	<head>
-	<title>Basic Weather App</title>
-	</head>
-	<body>
-		<br><br><br>
-		<form action="/login" method="post">
-			Current Zip code:<input type="text" name="username">
-			<input type="submit" value="Find Weather">
-		</form>
-	</body>
-</html>
+	<!DOCTYPE html>
+	<html>
+		<head>
+		<title>Basic Weather App</title>
+		</head>
+		<body>
+			<br><br><br>
+			<form action="/login" method="post">
+				Current Zip code:<input type="text" name="username">
+				<input type="submit" value="Find Weather">
+			</form>
+		</body>
+	</html>
+`))
+
+var weatherResult = template.Must(template.New("tmpl").Parse(`
+	<!DOCTYPE html>
+	<html>
+		<head>
+		<title>Basic Weather App</title>
+		</head>
+		<body>
+		<br><br>
+		<h1> The weather in {{.city}} , {{.region}} is: </h1>
+		<h2> {{.weathertext}}, at {{.temp}} degrees Fahrenheit </h2>
+		</body>
+	</html>
 `))

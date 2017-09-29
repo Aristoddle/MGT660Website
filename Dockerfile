@@ -9,7 +9,6 @@ ADD . /go/src/github.com/golang/example/outyet
 # (You may fetch or manage dependencies here,
 # either manually or with a tool like "godep".)
 RUN go install github.com/golang/example/outyet
-RUN go get -u github.com/tidwall/gjson
 
 # Run the outyet command by default when the container starts.
 ENTRYPOINT /go/bin/outyet
