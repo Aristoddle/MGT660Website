@@ -86,14 +86,6 @@ type WeatherResponse struct {
 
 }
 
-type CurrWeatherStruct struct {
-	city string
-	region string
-	temp float64
-	weathertext string
-	weathericon string
-}
-
 func login(w http.ResponseWriter, r *http.Request) {
     fmt.Println("method:", r.Method) //get request method
     if r.Method == "GET" {
@@ -149,16 +141,41 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 		fmt.Println("\n\n Pulled text and icon...\t", weathertext, weathericon)
 
-		wthrstruct := CurrWeatherStruct { 
-			cityname,
-			regionname, 
-			temp,
-			weathertext,
-			weathericon,
+
+
+
+
+		wthrstruct := struct {
+			City string
+			Region string
+			Temp float64
+			Weathertext string
+			Weathericon string
+		}{ 
+			City: cityname,
+			Region: regionname, 
+			Temp: temp,
+			Weathertext: weathertext,
+			Weathericon: weathericon,
 		}
 
 		fmt.Println("\n\nwthrstruct: \t\t", wthrstruct)
-		
+
+		var weatherResult = template.Must(template.New("weatherResult").Parse(`
+			<!DOCTYPE html>
+			<html>
+				<head>
+					<title>Basic Weather App</title>
+				</head>
+				
+				<body>
+					<br><br>
+					<h1> The weather in {{.City}} , {{.Region}} is: </h1>
+					<h2> {{.Weathertext}}, at {{.Temp}} degrees Fahrenheit </h2>
+				</body>
+			</html>
+		`))
+
 		err := weatherResult.Execute(w, wthrstruct)
 		if err != nil {
 			log.Print(err)
@@ -260,8 +277,9 @@ var tmpl = template.Must(template.New("tmpl").Parse(`
 	<!DOCTYPE html>
 	<html>
 		<head>
-		<title>Basic Weather App</title>
+			<title>Basic Weather App</title>
 		</head>
+		
 		<body>
 			<br><br><br>
 			<form action="/login" method="post">
@@ -272,16 +290,4 @@ var tmpl = template.Must(template.New("tmpl").Parse(`
 	</html>
 `))
 
-var weatherResult = template.Must(template.New("tmpl").Parse(`
-	<!DOCTYPE html>
-	<html>
-		<head>
-		<title>Basic Weather App</title>
-		</head>
-		<body>
-		<br><br>
-		<h1> The weather in {{.city}} , {{.region}} is: </h1>
-		<h2> {{.weathertext}}, at {{.temp}} degrees Fahrenheit </h2>
-		</body>
-	</html>
-`))
+
